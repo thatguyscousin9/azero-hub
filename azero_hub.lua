@@ -25,6 +25,7 @@ local StandFarmEnabled = false
 local RibFarmEnabled = false
 local PityFarmEnabled = false
 local DesiredPity = 0
+local PityFarmMethod = "Ribcages"
 
 local ItemSpawnNotifyEnabled = false
 local ItemSpawnConnection = nil
@@ -673,6 +674,9 @@ local function farmPity()
 		return
 	end
 
+	local usingRibcages = PityFarmMethod == "Ribcages"
+	local pityTargets = usingRibcages and RibStandTargets or NormalStandTargets
+
 	while PityFarmEnabled do
 		local currentPity = getCurrentPity()
 		if currentPity >= DesiredPity then
@@ -687,7 +691,7 @@ local function farmPity()
 			break
 		end
 
-		if targetHit(NormalStandTargets) then
+		if targetHit(pityTargets) then
 			Notifier:Obtained(getCurrentStandName(), 5)
 			PityFarmEnabled = false
 			break
@@ -700,16 +704,40 @@ local function farmPity()
 		end
 
 		if getCurrentStandName() == "None" then
-			if not useArrow() then
-				Notifier:Error("No arrows left", 4)
-				PityFarmEnabled = false
-				break
+			local usedItem = false
+
+			if usingRibcages then
+				usedItem = useRibcage()
+				if not usedItem then
+					Notifier:Error("No rib cages left", 4)
+					PityFarmEnabled = false
+					break
+				end
+			else
+				usedItem = useArrow()
+				if not usedItem then
+					Notifier:Error("No arrows left", 4)
+					PityFarmEnabled = false
+					break
+				end
 			end
 
 			waitForStandResult(6)
 
 			if getCurrentPity() >= DesiredPity then
 				Notifier:Success("Desired pity reached: " .. tostring(getCurrentPity()), 4)
+				PityFarmEnabled = false
+				break
+			end
+
+			if StopOnShinyEnabled and isShinyStand() then
+				Notifier:Obtained("Shiny " .. getCurrentStandName(), 5)
+				PityFarmEnabled = false
+				break
+			end
+
+			if targetHit(pityTargets) then
+				Notifier:Obtained(getCurrentStandName(), 5)
 				PityFarmEnabled = false
 				break
 			end
@@ -1022,6 +1050,16 @@ Stand:AddToggle("RibFarm", {
 				farmRibStand()
 			end)
 		end
+	end
+})
+
+Stand:AddDropdown("PityFarmMethod", {
+	Title = "Pity Farm Method",
+	Multi = false,
+	Values = {"Ribcages", "Arrows"},
+	Default = "Ribcages",
+	Callback = function(value)
+		PityFarmMethod = tostring(value or "Ribcages")
 	end
 })
 
