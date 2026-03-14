@@ -1,5 +1,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local Library = loadstring(request({
@@ -15,138 +17,6 @@ local Items = Window:AddTab("Items")
 local Fun = Window:AddTab("fun")
 local Misc = Window:AddTab("misc")
 local Settings = Window:AddTab("settings")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
-local PityWindow = nil
-local CurrentPityLabel = nil
-local WantedPityLabel = nil
-local PityWindowUpdateConnection = nil
-
-local function CreatePityWindow()
-	if PityWindow then
-		return
-	end
-
-	PityWindow = Instance.new("Frame")
-	PityWindow.Name = "PityWindow"
-	PityWindow.Parent = Window.Gui
-	PityWindow.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-	PityWindow.BorderSizePixel = 0
-	PityWindow.Position = UDim2.new(0, 20, 0, 120)
-	PityWindow.Size = UDim2.new(0, 180, 0, 100)
-	PityWindow.Active = true
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = PityWindow
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(42, 42, 56)
-	stroke.Transparency = 0.15
-	stroke.Parent = PityWindow
-
-	local topbar = Instance.new("Frame")
-	topbar.Parent = PityWindow
-	topbar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
-	topbar.BorderSizePixel = 0
-	topbar.Size = UDim2.new(1, 0, 0, 24)
-
-	local topbarCorner = Instance.new("UICorner")
-	topbarCorner.CornerRadius = UDim.new(0, 10)
-	topbarCorner.Parent = topbar
-
-	local title = Instance.new("TextLabel")
-	title.Parent = topbar
-	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, 0, 1, 0)
-	title.Font = Enum.Font.GothamSemibold
-	title.Text = "Pity"
-	title.TextSize = 12
-	title.TextColor3 = Color3.fromRGB(240, 240, 250)
-
-	CurrentPityLabel = Instance.new("TextLabel")
-	CurrentPityLabel.Parent = PityWindow
-	CurrentPityLabel.BackgroundTransparency = 1
-	CurrentPityLabel.Position = UDim2.new(0, 10, 0, 35)
-	CurrentPityLabel.Size = UDim2.new(1, -20, 0, 20)
-	CurrentPityLabel.Font = Enum.Font.GothamBold
-	CurrentPityLabel.Text = "Current: 0"
-	CurrentPityLabel.TextSize = 14
-	CurrentPityLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	CurrentPityLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	WantedPityLabel = Instance.new("TextLabel")
-	WantedPityLabel.Parent = PityWindow
-	WantedPityLabel.BackgroundTransparency = 1
-	WantedPityLabel.Position = UDim2.new(0, 10, 0, 60)
-	WantedPityLabel.Size = UDim2.new(1, -20, 0, 20)
-	WantedPityLabel.Font = Enum.Font.Gotham
-	WantedPityLabel.Text = "Wanted: 0"
-	WantedPityLabel.TextSize = 13
-	WantedPityLabel.TextColor3 = Color3.fromRGB(190, 190, 205)
-	WantedPityLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	local dragging = false
-	local dragStart = nil
-	local startPos = nil
-
-	topbar.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = input.Position
-			startPos = PityWindow.Position
-		end
-	end)
-
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
-		end
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			local delta = input.Position - dragStart
-			PityWindow.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-		end
-	end)
-end
-
-local function ShowPityWindow(state)
-	CreatePityWindow()
-	PityWindow.Visible = state
-
-	if state then
-		if PityWindowUpdateConnection then
-			PityWindowUpdateConnection:Disconnect()
-		end
-
-		PityWindowUpdateConnection = RunService.RenderStepped:Connect(function()
-			CurrentPityLabel.Text = "Current: " .. tostring(getCurrentPity())
-			WantedPityLabel.Text = "Wanted: " .. tostring(DesiredPity)
-		end)
-	else
-		if PityWindowUpdateConnection then
-			PityWindowUpdateConnection:Disconnect()
-			PityWindowUpdateConnection = nil
-		end
-	end
-end
-
-Misc:AddToggle("ShowPity", {
-	Title = "Show pity",
-	Default = false,
-	Callback = function(state)
-		ShowPityWindow(state)
-	end
-})
-
 
 local NormalStandTargets = {}
 local RibStandTargets = {}
@@ -159,6 +29,11 @@ local DesiredPity = 0
 local ItemSpawnNotifyEnabled = false
 local ItemSpawnConnection = nil
 local KnownItemPrompts = {}
+
+local PityWindow = nil
+local CurrentPityLabel = nil
+local WantedPityLabel = nil
+local PityWindowUpdateConnection = nil
 
 local NormalStandList = {
 	"Whitesnake",
@@ -318,6 +193,11 @@ end
 
 local Notifier = CreateNotifier(Window)
 
+local function extractNumber(text)
+	local number = tostring(text):match("%d+")
+	return tonumber(number) or 0
+end
+
 local function getCharacter()
 	return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 end
@@ -339,14 +219,56 @@ local function getPlayerStats()
 end
 
 local function getCurrentPity()
-	local stats = getPlayerStats()
-	if not stats then
-		return 0
+	local playerStats = LocalPlayer:FindFirstChild("PlayerStats")
+	if playerStats then
+		local pityValue = playerStats:FindFirstChild("PityCount")
+		if pityValue and tonumber(pityValue.Value) then
+			return tonumber(pityValue.Value)
+		end
 	end
 
-	local pity = stats:FindFirstChild("PityCount")
-	if pity and tonumber(pity.Value) then
-		return tonumber(pity.Value)
+	local standShop = game:GetService("ReplicatedStorage"):FindFirstChild("Objects")
+	if standShop then
+		standShop = standShop:FindFirstChild("HUD")
+	end
+	if standShop then
+		standShop = standShop:FindFirstChild("Main")
+	end
+	if standShop then
+		standShop = standShop:FindFirstChild("Frames")
+	end
+	if standShop then
+		standShop = standShop:FindFirstChild("Store")
+	end
+	if standShop then
+		standShop = standShop:FindFirstChild("List")
+	end
+	if standShop then
+		standShop = standShop:FindFirstChild("StandShop")
+	end
+
+	if standShop then
+		for _, obj in ipairs(standShop:GetDescendants()) do
+			local lowerName = obj.Name:lower()
+
+			if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+				if lowerName:find("pity") then
+					return tonumber(obj.Value) or 0
+				end
+			elseif obj:IsA("TextLabel") or obj:IsA("TextBox") then
+				local lowerText = tostring(obj.Text):lower()
+
+				if lowerName:find("pity") or lowerText:find("pity") then
+					return extractNumber(obj.Text)
+				end
+			elseif obj:IsA("StringValue") then
+				local lowerText = tostring(obj.Value):lower()
+
+				if lowerName:find("pity") or lowerText:find("pity") then
+					return extractNumber(obj.Value)
+				end
+			end
+		end
 	end
 
 	return 0
@@ -850,6 +772,12 @@ local function AddTextBox(tab, title, defaultValue, callback)
 	boxCorner.CornerRadius = UDim.new(0, 8)
 	boxCorner.Parent = box
 
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		if callback then
+			callback(box.Text)
+		end
+	end)
+
 	box.FocusLost:Connect(function()
 		if callback then
 			callback(box.Text)
@@ -911,6 +839,130 @@ local function startItemSpawnWatcher()
 			end
 		end)
 	end)
+end
+
+local function CreatePityWindow()
+	if PityWindow then
+		return
+	end
+
+	PityWindow = Instance.new("Frame")
+	PityWindow.Name = "PityWindow"
+	PityWindow.Parent = Window.Gui
+	PityWindow.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+	PityWindow.BorderSizePixel = 0
+	PityWindow.Position = UDim2.new(0, 20, 0, 120)
+	PityWindow.Size = UDim2.new(0, 180, 0, 100)
+	PityWindow.Active = true
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = PityWindow
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(42, 42, 56)
+	stroke.Transparency = 0.15
+	stroke.Parent = PityWindow
+
+	local topbar = Instance.new("Frame")
+	topbar.Parent = PityWindow
+	topbar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+	topbar.BorderSizePixel = 0
+	topbar.Size = UDim2.new(1, 0, 0, 24)
+
+	local topbarCorner = Instance.new("UICorner")
+	topbarCorner.CornerRadius = UDim.new(0, 10)
+	topbarCorner.Parent = topbar
+
+	local title = Instance.new("TextLabel")
+	title.Parent = topbar
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 1, 0)
+	title.Font = Enum.Font.GothamSemibold
+	title.Text = "Pity"
+	title.TextSize = 12
+	title.TextColor3 = Color3.fromRGB(240, 240, 250)
+
+	CurrentPityLabel = Instance.new("TextLabel")
+	CurrentPityLabel.Parent = PityWindow
+	CurrentPityLabel.BackgroundTransparency = 1
+	CurrentPityLabel.Position = UDim2.new(0, 10, 0, 35)
+	CurrentPityLabel.Size = UDim2.new(1, -20, 0, 20)
+	CurrentPityLabel.Font = Enum.Font.GothamBold
+	CurrentPityLabel.Text = "Current: 0"
+	CurrentPityLabel.TextSize = 14
+	CurrentPityLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	CurrentPityLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	WantedPityLabel = Instance.new("TextLabel")
+	WantedPityLabel.Parent = PityWindow
+	WantedPityLabel.BackgroundTransparency = 1
+	WantedPityLabel.Position = UDim2.new(0, 10, 0, 60)
+	WantedPityLabel.Size = UDim2.new(1, -20, 0, 20)
+	WantedPityLabel.Font = Enum.Font.Gotham
+	WantedPityLabel.Text = "Wanted: 0"
+	WantedPityLabel.TextSize = 13
+	WantedPityLabel.TextColor3 = Color3.fromRGB(190, 190, 205)
+	WantedPityLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	local dragging = false
+	local dragStart = nil
+	local startPos = nil
+
+	topbar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = PityWindow.Position
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			PityWindow.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+local function ShowPityWindow(state)
+	CreatePityWindow()
+	PityWindow.Visible = state
+
+	if state then
+		if PityWindowUpdateConnection then
+			PityWindowUpdateConnection:Disconnect()
+		end
+
+		CurrentPityLabel.Text = "Current: " .. tostring(getCurrentPity())
+		WantedPityLabel.Text = "Wanted: " .. tostring(DesiredPity)
+
+		PityWindowUpdateConnection = RunService.Heartbeat:Connect(function()
+			if CurrentPityLabel then
+				CurrentPityLabel.Text = "Current: " .. tostring(getCurrentPity())
+			end
+
+			if WantedPityLabel then
+				WantedPityLabel.Text = "Wanted: " .. tostring(DesiredPity)
+			end
+		end)
+	else
+		if PityWindowUpdateConnection then
+			PityWindowUpdateConnection:Disconnect()
+			PityWindowUpdateConnection = nil
+		end
+	end
 end
 
 Stand:AddDropdown("StandSelect", {
@@ -975,6 +1027,10 @@ Stand:AddToggle("RibFarm", {
 
 AddTextBox(Stand, "Desired Pity", DesiredPity, function(text)
 	DesiredPity = tonumber(text) or 0
+
+	if WantedPityLabel then
+		WantedPityLabel.Text = "Wanted: " .. tostring(DesiredPity)
+	end
 end)
 
 Stand:AddToggle("PityFarm", {
@@ -1007,5 +1063,13 @@ Items:AddToggle("ItemSpawnNotifications", {
 			stopItemSpawnWatcher()
 			Notifier:Notify("Items", "Spawn notifications disabled", "warn", 3)
 		end
+	end
+})
+
+Misc:AddToggle("ShowPity", {
+	Title = "Show pity",
+	Default = false,
+	Callback = function(state)
+		ShowPityWindow(state)
 	end
 })
