@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 local Library = loadstring(request({
@@ -7,310 +8,6 @@ local Library = loadstring(request({
 }).Body)()
 
 local Window = Library:CreateWindow("Azero Hub")
-local TweenService = game:GetService("TweenService")
-
-local function CreateNotifier(window)
-	local holder = Instance.new("Frame")
-	holder.Name = "NotifyHolder"
-	holder.Parent = window.Gui
-	holder.BackgroundTransparency = 1
-	holder.AnchorPoint = Vector2.new(1, 1)
-	holder.Position = UDim2.new(1, -20, 1, -20)
-	holder.Size = UDim2.new(0, 320, 0, 260)
-
-	local layout = Instance.new("UIListLayout")
-	layout.Parent = holder
-	layout.Padding = UDim.new(0, 8)
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	local function notify(title, text, kind, duration)
-		local colors = {
-			error = Color3.fromRGB(255, 95, 95),
-			success = Color3.fromRGB(90, 255, 140),
-			warn = Color3.fromRGB(255, 200, 90),
-			info = Color3.fromRGB(90, 140, 255)
-		}
-
-		local color = colors[kind] or colors.info
-		local life = duration or 4
-
-		local card = Instance.new("Frame")
-		card.Parent = holder
-		card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-		card.BorderSizePixel = 0
-		card.Size = UDim2.new(1, 0, 0, 0)
-		card.ClipsDescendants = true
-
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 10)
-		corner.Parent = card
-
-		local stroke = Instance.new("UIStroke")
-		stroke.Parent = card
-		stroke.Color = color
-		stroke.Thickness = 1
-		stroke.Transparency = 0.15
-
-		local accent = Instance.new("Frame")
-		accent.Parent = card
-		accent.BackgroundColor3 = color
-		accent.BorderSizePixel = 0
-		accent.Size = UDim2.new(0, 4, 1, 0)
-
-		local titleLabel = Instance.new("TextLabel")
-		titleLabel.Parent = card
-		titleLabel.BackgroundTransparency = 1
-		titleLabel.Position = UDim2.new(0, 14, 0, 8)
-		titleLabel.Size = UDim2.new(1, -20, 0, 16)
-		titleLabel.Font = Enum.Font.GothamBold
-		titleLabel.Text = tostring(title)
-		titleLabel.TextSize = 13
-		titleLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
-		titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-		titleLabel.TextTransparency = 1
-
-		local textLabel = Instance.new("TextLabel")
-		textLabel.Parent = card
-		textLabel.BackgroundTransparency = 1
-		textLabel.Position = UDim2.new(0, 14, 0, 26)
-		textLabel.Size = UDim2.new(1, -20, 0, 18)
-		textLabel.Font = Enum.Font.Gotham
-		textLabel.Text = tostring(text)
-		textLabel.TextSize = 12
-		textLabel.TextColor3 = Color3.fromRGB(190, 190, 205)
-		textLabel.TextWrapped = true
-		textLabel.TextXAlignment = Enum.TextXAlignment.Left
-		textLabel.TextYAlignment = Enum.TextYAlignment.Top
-		textLabel.TextTransparency = 1
-		textLabel.AutomaticSize = Enum.AutomaticSize.Y
-
-		task.wait()
-		local height = math.max(52, textLabel.TextBounds.Y + 34)
-
-		card.Size = UDim2.new(1, 40, 0, 0)
-		card.BackgroundTransparency = 1
-
-		TweenService:Create(card, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-			Size = UDim2.new(1, 0, 0, height),
-			BackgroundTransparency = 0
-		}):Play()
-
-		TweenService:Create(titleLabel, TweenInfo.new(0.2), {
-			TextTransparency = 0
-		}):Play()
-
-		TweenService:Create(textLabel, TweenInfo.new(0.2), {
-			TextTransparency = 0
-		}):Play()
-
-		task.delay(life, function()
-			if not card.Parent then
-				return
-			end
-
-			TweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-				Size = UDim2.new(1, 40, 0, 0),
-				BackgroundTransparency = 1
-			}):Play()
-
-			TweenService:Create(titleLabel, TweenInfo.new(0.15), {
-				TextTransparency = 1
-			}):Play()
-
-			TweenService:Create(textLabel, TweenInfo.new(0.15), {
-				TextTransparency = 1
-			}):Play()
-
-			task.wait(0.22)
-			card:Destroy()
-		end)
-	end
-
-	return {
-		Notify = notify,
-		Error = function(text, duration)
-			notify("Error", text, "error", duration)
-		end,
-		Success = function(text, duration)
-			notify("Success", text, "success", duration)
-		end,
-		Warn = function(text, duration)
-			notify("Warning", text, "warn", duration)
-		end,
-		Obtained = function(name, duration)
-			notify("Obtained", name, "success", duration)
-		end,
-		Spawned = function(name, duration)
-			notify("Spawned", name, "info", duration)
-		end
-	}
-end
-
-local Notifier = CreateNotifier(Window)
-
-local NotifyHolder = Window.Gui:FindFirstChild("NotifyHolder")
-local ItemSpawnNotifyEnabled = false
-local ItemSpawnConnection = nil
-local KnownItemPrompts = {}
-
-function Notifier:ItemSpawn(itemName, duration)
-	if not NotifyHolder then
-		return
-	end
-
-	local life = duration or 4
-
-	local card = Instance.new("Frame")
-	card.Parent = NotifyHolder
-	card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-	card.BorderSizePixel = 0
-	card.Size = UDim2.new(1, 0, 0, 0)
-	card.ClipsDescendants = true
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = card
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Parent = card
-	stroke.Color = Color3.fromRGB(90, 140, 255)
-	stroke.Thickness = 1
-	stroke.Transparency = 0.15
-
-	local smallText = Instance.new("TextLabel")
-	smallText.Parent = card
-	smallText.BackgroundTransparency = 1
-	smallText.Position = UDim2.new(0, 12, 0, 8)
-	smallText.Size = UDim2.new(1, -24, 0, 14)
-	smallText.Font = Enum.Font.Gotham
-	smallText.Text = "An Item Has Spawn"
-	smallText.TextSize = 10
-	smallText.TextColor3 = Color3.fromRGB(150, 150, 165)
-	smallText.TextXAlignment = Enum.TextXAlignment.Left
-	smallText.TextTransparency = 1
-
-	local itemLabel = Instance.new("TextLabel")
-	itemLabel.Parent = card
-	itemLabel.BackgroundTransparency = 1
-	itemLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-	itemLabel.Position = UDim2.new(0.5, 0, 0.5, 8)
-	itemLabel.Size = UDim2.new(1, -24, 0, 20)
-	itemLabel.Font = Enum.Font.GothamBold
-	itemLabel.Text = tostring(itemName)
-	itemLabel.TextSize = 16
-	itemLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
-	itemLabel.TextXAlignment = Enum.TextXAlignment.Center
-	itemLabel.TextTransparency = 1
-
-	TweenService:Create(card, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		Size = UDim2.new(1, 0, 0, 58)
-	}):Play()
-
-	TweenService:Create(smallText, TweenInfo.new(0.18), {
-		TextTransparency = 0
-	}):Play()
-
-	TweenService:Create(itemLabel, TweenInfo.new(0.18), {
-		TextTransparency = 0
-	}):Play()
-
-	task.delay(life, function()
-		if not card.Parent then
-			return
-		end
-
-		TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-			Size = UDim2.new(1, 0, 0, 0)
-		}):Play()
-
-		TweenService:Create(smallText, TweenInfo.new(0.14), {
-			TextTransparency = 1
-		}):Play()
-
-		TweenService:Create(itemLabel, TweenInfo.new(0.14), {
-			TextTransparency = 1
-		}):Play()
-
-		task.wait(0.2)
-		card:Destroy()
-	end)
-end
-
-local function getPromptItemName(prompt)
-	local objectText = tostring(prompt.ObjectText or "")
-	if objectText == "" then
-		return nil
-	end
-	return objectText
-end
-
-local function stopItemSpawnWatcher()
-	if ItemSpawnConnection then
-		ItemSpawnConnection:Disconnect()
-		ItemSpawnConnection = nil
-	end
-
-	KnownItemPrompts = {}
-end
-
-local function startItemSpawnWatcher()
-	KnownItemPrompts = {}
-
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("ProximityPrompt") then
-			KnownItemPrompts[obj] = true
-		end
-	end
-
-	ItemSpawnConnection = workspace.DescendantAdded:Connect(function(obj)
-		if not ItemSpawnNotifyEnabled then
-			return
-		end
-
-		if not obj:IsA("ProximityPrompt") then
-			return
-		end
-
-		if KnownItemPrompts[obj] then
-			return
-		end
-
-		KnownItemPrompts[obj] = true
-
-		task.defer(function()
-			if not obj.Parent then
-				return
-			end
-
-			local itemName = getPromptItemName(obj)
-			if itemName then
-				Notifier:ItemSpawn(itemName, 4)
-			end
-		end)
-	end)
-end
-
-Items:AddToggle("ItemSpawnNotifications", {
-	Title = "Item Spawn Notifications",
-	Default = false,
-	Callback = function(state)
-		ItemSpawnNotifyEnabled = state
-
-		if state then
-			startItemSpawnWatcher()
-		else
-			stopItemSpawnWatcher()
-		end
-	end
-})
-
-
-Notifier:Error("No arrows left", 4)
-Notifier:Obtained("Star Platinum", 4)
-Notifier:Spawned("Rib Cage of The Saint's Corpse", 4)
-
 
 local Info = Window:AddTab("info")
 local Stand = Window:AddTab("stand")
@@ -326,6 +23,10 @@ local StandFarmEnabled = false
 local RibFarmEnabled = false
 local PityFarmEnabled = false
 local DesiredPity = 0
+
+local ItemSpawnNotifyEnabled = false
+local ItemSpawnConnection = nil
+local KnownItemPrompts = {}
 
 local NormalStandList = {
 	"Whitesnake",
@@ -360,6 +61,130 @@ local RibStandList = {
 	"Tusk ACT 1",
 	"D4C"
 }
+
+local function CreateNotifier(window)
+	local holder = Instance.new("Frame")
+	holder.Name = "NotifyHolder"
+	holder.Parent = window.Gui
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(1, 1)
+	holder.Position = UDim2.new(1, -20, 1, -20)
+	holder.Size = UDim2.new(0, 320, 0, 260)
+
+	local layout = Instance.new("UIListLayout")
+	layout.Parent = holder
+	layout.Padding = UDim.new(0, 8)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+	local function makeCard(topText, middleText, accentColor, duration)
+		local life = duration or 4
+
+		local card = Instance.new("Frame")
+		card.Parent = holder
+		card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+		card.BorderSizePixel = 0
+		card.Size = UDim2.new(1, 0, 0, 0)
+		card.BackgroundTransparency = 0
+		card.ClipsDescendants = true
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 10)
+		corner.Parent = card
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Parent = card
+		stroke.Color = accentColor
+		stroke.Thickness = 1
+		stroke.Transparency = 0.15
+
+		local smallText = Instance.new("TextLabel")
+		smallText.Parent = card
+		smallText.BackgroundTransparency = 1
+		smallText.Position = UDim2.new(0, 12, 0, 8)
+		smallText.Size = UDim2.new(1, -24, 0, 14)
+		smallText.Font = Enum.Font.Gotham
+		smallText.Text = tostring(topText)
+		smallText.TextSize = 10
+		smallText.TextColor3 = Color3.fromRGB(150, 150, 165)
+		smallText.TextXAlignment = Enum.TextXAlignment.Left
+		smallText.TextTransparency = 1
+
+		local mainText = Instance.new("TextLabel")
+		mainText.Parent = card
+		mainText.BackgroundTransparency = 1
+		mainText.AnchorPoint = Vector2.new(0.5, 0.5)
+		mainText.Position = UDim2.new(0.5, 0, 0.5, 8)
+		mainText.Size = UDim2.new(1, -24, 0, 20)
+		mainText.Font = Enum.Font.GothamBold
+		mainText.Text = tostring(middleText)
+		mainText.TextSize = 16
+		mainText.TextColor3 = Color3.fromRGB(240, 240, 250)
+		mainText.TextXAlignment = Enum.TextXAlignment.Center
+		mainText.TextTransparency = 1
+
+		TweenService:Create(card, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			Size = UDim2.new(1, 0, 0, 58)
+		}):Play()
+
+		TweenService:Create(smallText, TweenInfo.new(0.18), {
+			TextTransparency = 0
+		}):Play()
+
+		TweenService:Create(mainText, TweenInfo.new(0.18), {
+			TextTransparency = 0
+		}):Play()
+
+		task.delay(life, function()
+			if not card.Parent then
+				return
+			end
+
+			TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+				Size = UDim2.new(1, 0, 0, 0),
+				BackgroundTransparency = 1
+			}):Play()
+
+			TweenService:Create(smallText, TweenInfo.new(0.14), {
+				TextTransparency = 1
+			}):Play()
+
+			TweenService:Create(mainText, TweenInfo.new(0.14), {
+				TextTransparency = 1
+			}):Play()
+
+			task.wait(0.2)
+			card:Destroy()
+		end)
+	end
+
+	return {
+		Notify = function(self, topText, middleText, kind, duration)
+			local colors = {
+				error = Color3.fromRGB(255, 95, 95),
+				success = Color3.fromRGB(90, 255, 140),
+				warn = Color3.fromRGB(255, 200, 90),
+				info = Color3.fromRGB(90, 140, 255)
+			}
+			makeCard(topText, middleText, colors[kind] or colors.info, duration)
+		end,
+		Error = function(self, text, duration)
+			makeCard("Error", text, Color3.fromRGB(255, 95, 95), duration)
+		end,
+		Success = function(self, text, duration)
+			makeCard("Success", text, Color3.fromRGB(90, 255, 140), duration)
+		end,
+		Obtained = function(self, name, duration)
+			makeCard("You Obtained", name, Color3.fromRGB(90, 255, 140), duration)
+		end,
+		ItemSpawn = function(self, name, duration)
+			makeCard("An Item Has Spawn", name, Color3.fromRGB(90, 140, 255), duration)
+		end
+	}
+end
+
+local Notifier = CreateNotifier(Window)
 
 local function getCharacter()
 	return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -649,10 +474,6 @@ local function useRibcage()
 	return true
 end
 
-local function notifyText(text)
-	print(text)
-end
-
 local function hasAnySelected(tbl)
 	return next(tbl) ~= nil
 end
@@ -663,12 +484,12 @@ end
 
 local function stopIfTargetOrShiny(tbl)
 	if StopOnShinyEnabled and isShinyStand() then
-		notifyText("Shiny found")
+		Notifier:Obtained("Shiny " .. getCurrentStandName(), 5)
 		return true
 	end
 
 	if targetHit(tbl) then
-		notifyText("Target stand found: " .. getCurrentStandName())
+		Notifier:Obtained(getCurrentStandName(), 5)
 		return true
 	end
 
@@ -681,7 +502,7 @@ local function farmNormalStand()
 	end
 
 	if not hasAnySelected(NormalStandTargets) then
-		notifyText("Select a stand first")
+		Notifier:Error("Select a stand first", 4)
 		StandFarmEnabled = false
 		return
 	end
@@ -693,38 +514,39 @@ local function farmNormalStand()
 		end
 
 		if not ensureWorthiness() then
-			notifyText("Worthiness failed")
+			Notifier:Error("Worthiness failed", 4)
 			StandFarmEnabled = false
 			break
 		end
 
 		if getCurrentPity() >= DesiredPity and DesiredPity > 0 then
-			notifyText("Desired pity reached")
+			Notifier:Success("Desired pity reached", 4)
 			StandFarmEnabled = false
 			break
 		end
 
 		if getCurrentStandName() == "None" then
 			if not useArrow() then
-				notifyText("No arrows left")
+				Notifier:Error("No arrows left", 4)
 				StandFarmEnabled = false
 				break
 			end
 
 			local result = waitForStandResult(6)
 			if result == "Shiny" then
+				Notifier:Obtained("Shiny " .. getCurrentStandName(), 5)
 				StandFarmEnabled = false
 				break
 			end
 
 			if targetHit(NormalStandTargets) then
-				notifyText("Target stand found: " .. getCurrentStandName())
+				Notifier:Obtained(getCurrentStandName(), 5)
 				StandFarmEnabled = false
 				break
 			end
 		else
 			if not useRokakaka() then
-				notifyText("No rokakaka left")
+				Notifier:Error("No rokakaka left", 4)
 				StandFarmEnabled = false
 				break
 			end
@@ -740,7 +562,7 @@ local function farmRibStand()
 	end
 
 	if not hasAnySelected(RibStandTargets) then
-		notifyText("Select a rib stand first")
+		Notifier:Error("Select a rib stand first", 4)
 		RibFarmEnabled = false
 		return
 	end
@@ -752,31 +574,32 @@ local function farmRibStand()
 		end
 
 		if not ensureWorthiness() then
-			notifyText("Worthiness failed")
+			Notifier:Error("Worthiness failed", 4)
 			RibFarmEnabled = false
 			break
 		end
 
 		if not useRibcage() then
-			notifyText("No rib cages left")
+			Notifier:Error("No rib cages left", 4)
 			RibFarmEnabled = false
 			break
 		end
 
 		local result = waitForStandResult(6)
 		if result == "Shiny" then
+			Notifier:Obtained("Shiny " .. getCurrentStandName(), 5)
 			RibFarmEnabled = false
 			break
 		end
 
 		if targetHit(RibStandTargets) then
-			notifyText("Target stand found: " .. getCurrentStandName())
+			Notifier:Obtained(getCurrentStandName(), 5)
 			RibFarmEnabled = false
 			break
 		end
 
 		if not useRokakaka() then
-			notifyText("No rokakaka left")
+			Notifier:Error("No rokakaka left", 4)
 			RibFarmEnabled = false
 			break
 		end
@@ -791,7 +614,7 @@ local function farmPity()
 	end
 
 	if DesiredPity <= 0 then
-		notifyText("Set desired pity first")
+		Notifier:Error("Set desired pity first", 4)
 		PityFarmEnabled = false
 		return
 	end
@@ -799,32 +622,32 @@ local function farmPity()
 	while PityFarmEnabled do
 		local currentPity = getCurrentPity()
 		if currentPity >= DesiredPity then
-			notifyText("Desired pity reached: " .. tostring(currentPity))
+			Notifier:Success("Desired pity reached: " .. tostring(currentPity), 4)
 			PityFarmEnabled = false
 			break
 		end
 
 		if StopOnShinyEnabled and isShinyStand() then
-			notifyText("Shiny found")
+			Notifier:Obtained("Shiny " .. getCurrentStandName(), 5)
 			PityFarmEnabled = false
 			break
 		end
 
 		if targetHit(NormalStandTargets) then
-			notifyText("Target stand found: " .. getCurrentStandName())
+			Notifier:Obtained(getCurrentStandName(), 5)
 			PityFarmEnabled = false
 			break
 		end
 
 		if not ensureWorthiness() then
-			notifyText("Worthiness failed")
+			Notifier:Error("Worthiness failed", 4)
 			PityFarmEnabled = false
 			break
 		end
 
 		if getCurrentStandName() == "None" then
 			if not useArrow() then
-				notifyText("No arrows left")
+				Notifier:Error("No arrows left", 4)
 				PityFarmEnabled = false
 				break
 			end
@@ -832,13 +655,13 @@ local function farmPity()
 			waitForStandResult(6)
 
 			if getCurrentPity() >= DesiredPity then
-				notifyText("Desired pity reached: " .. tostring(getCurrentPity()))
+				Notifier:Success("Desired pity reached: " .. tostring(getCurrentPity()), 4)
 				PityFarmEnabled = false
 				break
 			end
 		else
 			if not useRokakaka() then
-				notifyText("No rokakaka left")
+				Notifier:Error("No rokakaka left", 4)
 				PityFarmEnabled = false
 				break
 			end
@@ -902,6 +725,60 @@ local function AddTextBox(tab, title, defaultValue, callback)
 	end)
 
 	return box
+end
+
+local function getPromptItemName(prompt)
+	local objectText = tostring(prompt.ObjectText or "")
+	if objectText == "" then
+		return nil
+	end
+	return objectText
+end
+
+local function stopItemSpawnWatcher()
+	if ItemSpawnConnection then
+		ItemSpawnConnection:Disconnect()
+		ItemSpawnConnection = nil
+	end
+
+	KnownItemPrompts = {}
+end
+
+local function startItemSpawnWatcher()
+	stopItemSpawnWatcher()
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("ProximityPrompt") then
+			KnownItemPrompts[obj] = true
+		end
+	end
+
+	ItemSpawnConnection = workspace.DescendantAdded:Connect(function(obj)
+		if not ItemSpawnNotifyEnabled then
+			return
+		end
+
+		if not obj:IsA("ProximityPrompt") then
+			return
+		end
+
+		if KnownItemPrompts[obj] then
+			return
+		end
+
+		KnownItemPrompts[obj] = true
+
+		task.defer(function()
+			if not obj.Parent then
+				return
+			end
+
+			local itemName = getPromptItemName(obj)
+			if itemName and itemName ~= "" then
+				Notifier:ItemSpawn(itemName, 4)
+			end
+		end)
+	end)
 end
 
 Stand:AddDropdown("StandSelect", {
@@ -981,6 +858,22 @@ Stand:AddToggle("PityFarm", {
 			task.spawn(function()
 				farmPity()
 			end)
+		end
+	end
+})
+
+Items:AddToggle("ItemSpawnNotifications", {
+	Title = "Item Spawn Notifications",
+	Default = false,
+	Callback = function(state)
+		ItemSpawnNotifyEnabled = state
+
+		if state then
+			startItemSpawnWatcher()
+			Notifier:Notify("Items", "Spawn notifications enabled", "info", 3)
+		else
+			stopItemSpawnWatcher()
+			Notifier:Notify("Items", "Spawn notifications disabled", "warn", 3)
 		end
 	end
 })
