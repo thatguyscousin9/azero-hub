@@ -150,6 +150,163 @@ end
 
 local Notifier = CreateNotifier(Window)
 
+local NotifyHolder = Window.Gui:FindFirstChild("NotifyHolder")
+local ItemSpawnNotifyEnabled = false
+local ItemSpawnConnection = nil
+local KnownItemPrompts = {}
+
+function Notifier:ItemSpawn(itemName, duration)
+	if not NotifyHolder then
+		return
+	end
+
+	local life = duration or 4
+
+	local card = Instance.new("Frame")
+	card.Parent = NotifyHolder
+	card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+	card.BorderSizePixel = 0
+	card.Size = UDim2.new(1, 0, 0, 0)
+	card.ClipsDescendants = true
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = card
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Parent = card
+	stroke.Color = Color3.fromRGB(90, 140, 255)
+	stroke.Thickness = 1
+	stroke.Transparency = 0.15
+
+	local smallText = Instance.new("TextLabel")
+	smallText.Parent = card
+	smallText.BackgroundTransparency = 1
+	smallText.Position = UDim2.new(0, 12, 0, 8)
+	smallText.Size = UDim2.new(1, -24, 0, 14)
+	smallText.Font = Enum.Font.Gotham
+	smallText.Text = "An Item Has Spawn"
+	smallText.TextSize = 10
+	smallText.TextColor3 = Color3.fromRGB(150, 150, 165)
+	smallText.TextXAlignment = Enum.TextXAlignment.Left
+	smallText.TextTransparency = 1
+
+	local itemLabel = Instance.new("TextLabel")
+	itemLabel.Parent = card
+	itemLabel.BackgroundTransparency = 1
+	itemLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	itemLabel.Position = UDim2.new(0.5, 0, 0.5, 8)
+	itemLabel.Size = UDim2.new(1, -24, 0, 20)
+	itemLabel.Font = Enum.Font.GothamBold
+	itemLabel.Text = tostring(itemName)
+	itemLabel.TextSize = 16
+	itemLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
+	itemLabel.TextXAlignment = Enum.TextXAlignment.Center
+	itemLabel.TextTransparency = 1
+
+	TweenService:Create(card, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		Size = UDim2.new(1, 0, 0, 58)
+	}):Play()
+
+	TweenService:Create(smallText, TweenInfo.new(0.18), {
+		TextTransparency = 0
+	}):Play()
+
+	TweenService:Create(itemLabel, TweenInfo.new(0.18), {
+		TextTransparency = 0
+	}):Play()
+
+	task.delay(life, function()
+		if not card.Parent then
+			return
+		end
+
+		TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+			Size = UDim2.new(1, 0, 0, 0)
+		}):Play()
+
+		TweenService:Create(smallText, TweenInfo.new(0.14), {
+			TextTransparency = 1
+		}):Play()
+
+		TweenService:Create(itemLabel, TweenInfo.new(0.14), {
+			TextTransparency = 1
+		}):Play()
+
+		task.wait(0.2)
+		card:Destroy()
+	end)
+end
+
+local function getPromptItemName(prompt)
+	local objectText = tostring(prompt.ObjectText or "")
+	if objectText == "" then
+		return nil
+	end
+	return objectText
+end
+
+local function stopItemSpawnWatcher()
+	if ItemSpawnConnection then
+		ItemSpawnConnection:Disconnect()
+		ItemSpawnConnection = nil
+	end
+
+	KnownItemPrompts = {}
+end
+
+local function startItemSpawnWatcher()
+	KnownItemPrompts = {}
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("ProximityPrompt") then
+			KnownItemPrompts[obj] = true
+		end
+	end
+
+	ItemSpawnConnection = workspace.DescendantAdded:Connect(function(obj)
+		if not ItemSpawnNotifyEnabled then
+			return
+		end
+
+		if not obj:IsA("ProximityPrompt") then
+			return
+		end
+
+		if KnownItemPrompts[obj] then
+			return
+		end
+
+		KnownItemPrompts[obj] = true
+
+		task.defer(function()
+			if not obj.Parent then
+				return
+			end
+
+			local itemName = getPromptItemName(obj)
+			if itemName then
+				Notifier:ItemSpawn(itemName, 4)
+			end
+		end)
+	end)
+end
+
+Items:AddToggle("ItemSpawnNotifications", {
+	Title = "Item Spawn Notifications",
+	Default = false,
+	Callback = function(state)
+		ItemSpawnNotifyEnabled = state
+
+		if state then
+			startItemSpawnWatcher()
+		else
+			stopItemSpawnWatcher()
+		end
+	end
+})
+
+
 Notifier:Error("No arrows left", 4)
 Notifier:Obtained("Star Platinum", 4)
 Notifier:Spawned("Rib Cage of The Saint's Corpse", 4)
