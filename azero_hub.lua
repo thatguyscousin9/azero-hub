@@ -78,22 +78,22 @@ local RibStandList = {
 local ItemFarmList = {
 	"Mysterious Arrow",
 	"Rokakaka",
-	"Pure Rokakaka",
 	"Rib Cage of The Saint's Corpse",
-	"Left Arm of the Saint's Corpse",
-	"Heart of the Saint's Corpse",
-	"Pelvis of the Saint's Corpse",
 	"Lucky Arrow",
-	"Stone Mask",
-	"Dio's Diary",
-	"Ancient Scroll",
-	"Steel Ball",
-	"Gold Coin",
-	"Diamond",
-	"Quinton's Glove",
-	"Caesar's Headband",
 	"Clackers",
-	"Red Stone of Aja"
+	"Diamond",
+	"Stone Mask",
+	"Caesar's Headband",
+	"Pure Rokakaka",
+	"Zeppeli's Hat",
+	"Gold Coin",
+	"Ancient Scroll",
+	"Quinton's Glove",
+	"Steel Ball",
+	"DIO's Diary",
+	"Lucky Stone Mask",
+	"Christmas Present",
+	"Candies",
 }
 
 local function CreateNotifier(window)
@@ -849,6 +849,29 @@ local function getPromptItemName(prompt)
 	return objectText
 end
 
+local function itemMatchesTarget(itemName)
+	itemName = tostring(itemName or "")
+	if itemName == "" then
+		return false
+	end
+
+	if ItemFarmTargets[itemName] == true then
+		return true
+	end
+
+	if ItemFarmTargets["Candies"] then
+		local lowerName = itemName:lower()
+
+		if lowerName:find("candy") then
+			if lowerName:find("red") or lowerName:find("yellow") or lowerName:find("green") or lowerName:find("blue") then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
 local function stopItemSpawnWatcher()
 	if ItemSpawnConnection then
 		ItemSpawnConnection:Disconnect()
@@ -979,7 +1002,7 @@ local function getNearestTargetPrompt()
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("ProximityPrompt") then
 			local objectText = tostring(obj.ObjectText or "")
-			if objectText ~= "" and ItemFarmTargets[objectText] == true then
+			if objectText ~= "" and itemMatchesTarget(objectText) then
 				local promptPosition = getPromptPosition(obj)
 				if promptPosition then
 					local distance = (rootPart.Position - promptPosition).Magnitude
