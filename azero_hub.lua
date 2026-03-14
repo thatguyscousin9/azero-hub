@@ -26,6 +26,10 @@ local RibFarmEnabled = false
 local PityFarmEnabled = false
 local DesiredPity = 0
 local PityFarmMethod = "Ribcages"
+local ItemFarmEnabled = false
+local ItemFarmTargets = {}
+local ItemFarmMethod = "Tween"
+local ActiveItemTween = nil
 
 local ItemSpawnNotifyEnabled = false
 local ItemSpawnConnection = nil
@@ -68,6 +72,28 @@ local RibStandList = {
 	"Scary Monsters",
 	"Tusk ACT 1",
 	"D4C"
+}
+
+
+local ItemFarmList = {
+	"Mysterious Arrow",
+	"Rokakaka",
+	"Pure Rokakaka",
+	"Rib Cage of The Saint's Corpse",
+	"Left Arm of the Saint's Corpse",
+	"Heart of the Saint's Corpse",
+	"Pelvis of the Saint's Corpse",
+	"Lucky Arrow",
+	"Stone Mask",
+	"Dio's Diary",
+	"Ancient Scroll",
+	"Steel Ball",
+	"Gold Coin",
+	"Diamond",
+	"Quinton's Glove",
+	"Caesar's Headband",
+	"Clackers",
+	"Red Stone of Aja"
 }
 
 local function CreateNotifier(window)
@@ -869,6 +895,147 @@ local function startItemSpawnWatcher()
 	end)
 end
 
+local function getRootPart()
+	return getCharacter():WaitForChild("HumanoidRootPart")
+end
+
+local function stopItemTween()
+	if ActiveItemTween then
+		pcall(function()
+			ActiveItemTween:Cancel()
+		end)
+		ActiveItemTween = nil
+	end
+end
+
+local function getPromptPosition(prompt)
+	local current = prompt
+
+	while current and current ~= workspace do
+		if current:IsA("BasePart") then
+			return current.Position
+		end
+
+		if current:IsA("Attachment") and current.Parent and current.Parent:IsA("BasePart") then
+			return current.Parent.Position
+		end
+
+		if current:IsA("Model") then
+			local mainPart = current.PrimaryPart or current:FindFirstChildWhichIsA("BasePart", true)
+			if mainPart then
+				return mainPart.Position
+			end
+		end
+
+		current = current.Parent
+	end
+
+	return nil
+end
+
+local function moveToItemPosition(position)
+	local rootPart = getRootPart()
+	local targetCFrame = CFrame.new(position + Vector3.new(0, 3, 0))
+
+	if ItemFarmMethod == "Instant Teleport" then
+		rootPart.CFrame = targetCFrame
+		return true
+	end
+
+	local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+	local tweenTime = math.clamp(distance / 120, 0.05, 3)
+
+	stopItemTween()
+	ActiveItemTween = TweenService:Create(rootPart, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {
+		CFrame = targetCFrame
+	})
+	ActiveItemTween:Play()
+	ActiveItemTween.Completed:Wait()
+	ActiveItemTween = nil
+
+	return true
+end
+
+local function triggerPrompt(prompt)
+	if not prompt or not prompt.Parent then
+		return false
+	end
+
+	if fireproximityprompt then
+		local ok = pcall(function()
+			fireproximityprompt(prompt)
+		end)
+		return ok
+	end
+
+	return false
+end
+
+local function getNearestTargetPrompt()
+	local rootPart = getRootPart()
+	local nearestPrompt = nil
+	local nearestDistance = math.huge
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("ProximityPrompt") then
+			local objectText = tostring(obj.ObjectText or "")
+			if objectText ~= "" and ItemFarmTargets[objectText] == true then
+				local promptPosition = getPromptPosition(obj)
+				if promptPosition then
+					local distance = (rootPart.Position - promptPosition).Magnitude
+					if distance < nearestDistance then
+						nearestDistance = distance
+						nearestPrompt = obj
+					end
+				end
+			end
+		end
+	end
+
+	return nearestPrompt, nearestDistance
+end
+
+local function farmItems()
+	if ItemFarmEnabled == false then
+		return
+	end
+
+	if next(ItemFarmTargets) == nil then
+		Notifier:Error("Select an item first", 4)
+		ItemFarmEnabled = false
+		return
+	end
+
+	Notifier:Notify("Items", "Item farm started", "info", 3)
+
+	while ItemFarmEnabled do
+		local prompt, distance = getNearestTargetPrompt()
+
+		if prompt and prompt.Parent then
+			local itemName = tostring(prompt.ObjectText or "Item")
+			local promptPosition = getPromptPosition(prompt)
+
+			if promptPosition then
+				moveToItemPosition(promptPosition)
+				task.wait(0.1)
+
+				triggerPrompt(prompt)
+				task.wait(0.35)
+
+				if not prompt.Parent then
+					Notifier:Success("Collected " .. itemName, 3)
+				end
+			end
+		else
+			task.wait(0.3)
+		end
+
+		task.wait(0.1)
+	end
+
+	stopItemTween()
+end
+
 local function CreatePityWindow()
 	if PityWindow then
 		return
@@ -1100,6 +1267,42 @@ Items:AddToggle("ItemSpawnNotifications", {
 		else
 			stopItemSpawnWatcher()
 			Notifier:Notify("Items", "Spawn notifications disabled", "warn", 3)
+		end
+	end
+})
+
+
+Items:AddDropdown("ItemFarmSelect", {
+	Title = "Item Select",
+	Multi = true,
+	Values = ItemFarmList,
+	Callback = function(value)
+		ItemFarmTargets = value
+	end
+})
+
+Items:AddDropdown("ItemFarmMethod", {
+	Title = "Item Farm Method",
+	Multi = false,
+	Values = {"Tween", "Instant Teleport"},
+	Default = "Tween",
+	Callback = function(value)
+		ItemFarmMethod = tostring(value or "Tween")
+	end
+})
+
+Items:AddToggle("ItemFarm", {
+	Title = "Item Farm",
+	Default = false,
+	Callback = function(state)
+		ItemFarmEnabled = state
+
+		if state then
+			task.spawn(function()
+				farmItems()
+			end)
+		else
+			stopItemTween()
 		end
 	end
 })
