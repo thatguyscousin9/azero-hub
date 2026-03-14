@@ -7,7 +7,7 @@ local Window = Library:CreateWindow("Azero Hub")
 
 local Info = Window:AddTab("info")
 local Stand = Window:AddTab("stand")
-local Farm = Window:AddTab("farm")
+local Items = Window:AddTab("Items")
 local Fun = Window:AddTab("fun")
 local Misc = Window:AddTab("misc")
 local Settings = Window:AddTab("settings")
