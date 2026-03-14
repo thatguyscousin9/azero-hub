@@ -7,6 +7,153 @@ local Library = loadstring(request({
 }).Body)()
 
 local Window = Library:CreateWindow("Azero Hub")
+local TweenService = game:GetService("TweenService")
+
+local function CreateNotifier(window)
+	local holder = Instance.new("Frame")
+	holder.Name = "NotifyHolder"
+	holder.Parent = window.Gui
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(1, 1)
+	holder.Position = UDim2.new(1, -20, 1, -20)
+	holder.Size = UDim2.new(0, 320, 0, 260)
+
+	local layout = Instance.new("UIListLayout")
+	layout.Parent = holder
+	layout.Padding = UDim.new(0, 8)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+	local function notify(title, text, kind, duration)
+		local colors = {
+			error = Color3.fromRGB(255, 95, 95),
+			success = Color3.fromRGB(90, 255, 140),
+			warn = Color3.fromRGB(255, 200, 90),
+			info = Color3.fromRGB(90, 140, 255)
+		}
+
+		local color = colors[kind] or colors.info
+		local life = duration or 4
+
+		local card = Instance.new("Frame")
+		card.Parent = holder
+		card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+		card.BorderSizePixel = 0
+		card.Size = UDim2.new(1, 0, 0, 0)
+		card.ClipsDescendants = true
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 10)
+		corner.Parent = card
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Parent = card
+		stroke.Color = color
+		stroke.Thickness = 1
+		stroke.Transparency = 0.15
+
+		local accent = Instance.new("Frame")
+		accent.Parent = card
+		accent.BackgroundColor3 = color
+		accent.BorderSizePixel = 0
+		accent.Size = UDim2.new(0, 4, 1, 0)
+
+		local titleLabel = Instance.new("TextLabel")
+		titleLabel.Parent = card
+		titleLabel.BackgroundTransparency = 1
+		titleLabel.Position = UDim2.new(0, 14, 0, 8)
+		titleLabel.Size = UDim2.new(1, -20, 0, 16)
+		titleLabel.Font = Enum.Font.GothamBold
+		titleLabel.Text = tostring(title)
+		titleLabel.TextSize = 13
+		titleLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
+		titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+		titleLabel.TextTransparency = 1
+
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Parent = card
+		textLabel.BackgroundTransparency = 1
+		textLabel.Position = UDim2.new(0, 14, 0, 26)
+		textLabel.Size = UDim2.new(1, -20, 0, 18)
+		textLabel.Font = Enum.Font.Gotham
+		textLabel.Text = tostring(text)
+		textLabel.TextSize = 12
+		textLabel.TextColor3 = Color3.fromRGB(190, 190, 205)
+		textLabel.TextWrapped = true
+		textLabel.TextXAlignment = Enum.TextXAlignment.Left
+		textLabel.TextYAlignment = Enum.TextYAlignment.Top
+		textLabel.TextTransparency = 1
+		textLabel.AutomaticSize = Enum.AutomaticSize.Y
+
+		task.wait()
+		local height = math.max(52, textLabel.TextBounds.Y + 34)
+
+		card.Size = UDim2.new(1, 40, 0, 0)
+		card.BackgroundTransparency = 1
+
+		TweenService:Create(card, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			Size = UDim2.new(1, 0, 0, height),
+			BackgroundTransparency = 0
+		}):Play()
+
+		TweenService:Create(titleLabel, TweenInfo.new(0.2), {
+			TextTransparency = 0
+		}):Play()
+
+		TweenService:Create(textLabel, TweenInfo.new(0.2), {
+			TextTransparency = 0
+		}):Play()
+
+		task.delay(life, function()
+			if not card.Parent then
+				return
+			end
+
+			TweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+				Size = UDim2.new(1, 40, 0, 0),
+				BackgroundTransparency = 1
+			}):Play()
+
+			TweenService:Create(titleLabel, TweenInfo.new(0.15), {
+				TextTransparency = 1
+			}):Play()
+
+			TweenService:Create(textLabel, TweenInfo.new(0.15), {
+				TextTransparency = 1
+			}):Play()
+
+			task.wait(0.22)
+			card:Destroy()
+		end)
+	end
+
+	return {
+		Notify = notify,
+		Error = function(text, duration)
+			notify("Error", text, "error", duration)
+		end,
+		Success = function(text, duration)
+			notify("Success", text, "success", duration)
+		end,
+		Warn = function(text, duration)
+			notify("Warning", text, "warn", duration)
+		end,
+		Obtained = function(name, duration)
+			notify("Obtained", name, "success", duration)
+		end,
+		Spawned = function(name, duration)
+			notify("Spawned", name, "info", duration)
+		end
+	}
+end
+
+local Notifier = CreateNotifier(Window)
+
+Notifier:Error("No arrows left", 4)
+Notifier:Obtained("Star Platinum", 4)
+Notifier:Spawned("Rib Cage of The Saint's Corpse", 4)
+
 
 local Info = Window:AddTab("info")
 local Stand = Window:AddTab("stand")
