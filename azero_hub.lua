@@ -66,16 +66,6 @@ Stand:AddToggle("StopOnShiny", {
 	end
 })
 
-Settings:AddSlider("WalkSpeed", {
-	Title = "WalkSpeed",
-	Min = 16,
-	Max = 100,
-	Default = 16,
-	Callback = function(value)
-		print("WalkSpeed:", value)
-	end
-})
-
 Fun:AddButton({
 	Title = "Test Button",
 	Callback = function()
